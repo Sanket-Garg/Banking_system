@@ -29,6 +29,7 @@ Monthly maintenance fees
 
 Close account (if balance ≥ 0)
 
+✨ Features
 🔹 Premium Account (inherits from BasicAccount)
 
 All features of BasicAccount
