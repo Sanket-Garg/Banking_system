@@ -26,7 +26,7 @@ class BasicAccount:
             f"PIN: {self.pin}"
         )
 
-    # ------------------ New Features -------------------
+    
     def record_transaction(self, t_type, amount, success=True):
         self.transactions.append({
             "time": datetime.now(),
@@ -77,7 +77,7 @@ class BasicAccount:
         else:
             print("✅ Your card is valid.")
 
-    # ---------------- Existing Features ----------------
+    
     def deposit(self, amount: float):
         if not self.is_active:
             print("Transaction denied. Account is frozen.")
@@ -190,7 +190,7 @@ class PremiumAccount(BasicAccount):
                   f"overdraft or loan balance £{self.loan_balance:.2f}")
             return False
 
-    # ---------------- Premium Extras ----------------
+    
     def apply_interest(self, rate):
         interest = self.balance * (rate / 100)
         self.balance += interest
