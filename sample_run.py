@@ -5,7 +5,7 @@ Run this file to see full system output including AML screening,
 velocity-based flagging, structuring detection, and alert export.
 """
 
-from banking import BasicAccount, PremiumAccount, FraudMonitor
+from Banking import BasicAccount, PremiumAccount, FraudMonitor
 
 
 def separator(title=""):
