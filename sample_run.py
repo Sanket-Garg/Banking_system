@@ -153,18 +153,3 @@ premium.close_account()          # now succeeds
 
 separator("DEMO COMPLETE")
 ```
-
----
-
-**Your main file must be named `banking.py` for the import to work.**
-
-**GitHub README structure — add this exact section:**
-```
-## How to Run
-pip install -r requirements.txt   # no external deps, stdlib only
-python test_demo.py
-```
-
-**Then add a `requirements.txt` with just:**
-```
-# No external dependencies — stdlib only
