@@ -1,10 +1,3 @@
-"""
-test_demo.py
-Demonstration script for AML Transaction Monitoring System.
-Run this file to see full system output including AML screening,
-velocity-based flagging, structuring detection, and alert export.
-"""
-
 from Banking import BasicAccount, PremiumAccount, FraudMonitor
 
 
