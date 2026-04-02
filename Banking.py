@@ -1,20 +1,21 @@
-import random  
+import random
+import csv
 from datetime import datetime, timedelta
 
 
 class BasicAccount:
-    counter = 0  # Class variable to keep track of the number of accounts
+    counter = 0
 
     def __init__(self, ac_name: str, opening_balance: float):
         BasicAccount.counter += 1
         self.name = ac_name
-        self.ac_num = f"GB00BANK{BasicAccount.counter:08d}"  # IBAN-like number
+        self.ac_num = f"GB00BANK{BasicAccount.counter:08d}"
         self.balance = opening_balance
         self.card_num = self.generate_card_number()
         self.card_exp = self.generate_card_expiry()
-        self.pin = random.randint(1000, 9999)  # card PIN
+        self.pin = random.randint(1000, 9999)
         self.is_active = True
-        self.transactions = []  # Store transaction history
+        self.transactions = []
 
     def __str__(self):
         return (
@@ -26,7 +27,6 @@ class BasicAccount:
             f"PIN: {self.pin}"
         )
 
-    
     def record_transaction(self, t_type, amount, success=True):
         self.transactions.append({
             "time": datetime.now(),
@@ -39,11 +39,13 @@ class BasicAccount:
     def print_statement(self, n=5):
         print(f"\nMini Statement for {self.name} (Last {n} transactions):")
         for t in self.transactions[-n:]:
-            print(f"{t['time']} | {t['type']} | £{t['amount']:.2f} | "
-                  f"Bal: £{t['balance']:.2f} | {t['status']}")
+            print(
+                f"{t['time']} | {t['type']} | £{t['amount']:.2f} | "
+                f"Bal: £{t['balance']:.2f} | {t['status']}"
+            )
 
     def transfer(self, to_account, amount, pin):
-        if not self.verify_pin(pin):  
+        if not self.verify_pin(pin):
             print("PIN verification failed. Transfer denied.")
             self.record_transaction("Transfer Out", amount, success=False)
             return
@@ -63,21 +65,20 @@ class BasicAccount:
 
     def freeze_account(self):
         self.is_active = False
-        print("Account has been frozen. No transactions allowed.")
+        print(f"[FROZEN] Account {self.ac_num} has been frozen. No transactions allowed.")
 
     def unfreeze_account(self):
         self.is_active = True
-        print("Account has been unfrozen. Transactions allowed.")
+        print(f"[ACTIVE] Account {self.ac_num} has been unfrozen. Transactions allowed.")
 
     def check_card_expiry(self):
         today = datetime.now()
         expiry_date = datetime(2000 + self.card_exp[1], self.card_exp[0], 1)
         if expiry_date - today < timedelta(days=90):
-            print("⚠️ Your card is expiring soon. Please renew.")
+            print("Your card is expiring soon. Please renew.")
         else:
-            print("✅ Your card is valid.")
+            print("Your card is valid.")
 
-    
     def deposit(self, amount: float):
         if not self.is_active:
             print("Transaction denied. Account is frozen.")
@@ -98,8 +99,10 @@ class BasicAccount:
             available_balance = self.get_available_balance()
             if amount <= available_balance:
                 self.balance -= amount
-                print(f"{self.name} has withdrawn £{amount:.2f}. "
-                      f"New balance is £{self.balance:.2f}")
+                print(
+                    f"{self.name} has withdrawn £{amount:.2f}. "
+                    f"New balance is £{self.balance:.2f}"
+                )
                 self.record_transaction("Withdrawal", amount)
                 return True
             else:
@@ -136,24 +139,111 @@ class BasicAccount:
     def issue_new_card(self):
         self.card_num = self.generate_card_number()
         self.card_exp = self.generate_card_expiry()
+        print(f"New card issued. Number: {self.card_num}, "
+              f"Expiry: {self.card_exp[0]}/{self.card_exp[1]:02d}")
 
     def close_account(self):
         if self.get_balance() >= 0:
-            print(f"Account closed. "
-                  f"Amount to be returned: £{self.balance:.2f}.")
+            print(f"Account closed. Amount to be returned: £{self.balance:.2f}.")
             self.withdraw(self.balance)
             return True
         else:
-            print("Account can't be closed due to negative balance.")
+            print("Account cannot be closed due to negative balance.")
             return False
 
+    # ── AML MONITORING ─────────────────────────────────────────────────────
+
+    def velocity_check(self, window_minutes=60, max_transactions=5,
+                       amount_threshold=500):
+        """
+        Flags account if:
+        - More than max_transactions outflows in the last window_minutes
+        - Any single transaction exceeds amount_threshold
+        - Structuring pattern: multiple sub-threshold transactions
+          whose sum exceeds the threshold (smurfing typology)
+        """
+        flags = []
+        now = datetime.now()
+        window_start = now - timedelta(minutes=window_minutes)
+
+        recent = [
+            t for t in self.transactions
+            if t["time"] >= window_start
+            and t["status"] == "Success"
+            and t["type"] in ["Withdrawal", "Transfer Out"]
+        ]
+
+        # Flag 1: High frequency
+        if len(recent) >= max_transactions:
+            flags.append({
+                "flag_type": "HIGH_FREQUENCY",
+                "detail": (
+                    f"{len(recent)} outflow transactions "
+                    f"in {window_minutes} minutes"
+                ),
+                "timestamp": now,
+                "account": self.ac_num,
+                "account_name": self.name
+            })
+
+        # Flag 2: High value single transaction
+        for t in recent:
+            if t["amount"] >= amount_threshold:
+                flags.append({
+                    "flag_type": "HIGH_VALUE",
+                    "detail": (
+                        f"Single transaction of £{t['amount']:.2f} "
+                        f"exceeds threshold of £{amount_threshold:.2f}"
+                    ),
+                    "timestamp": t["time"],
+                    "account": self.ac_num,
+                    "account_name": self.name
+                })
+
+        # Flag 3: Structuring / smurfing pattern
+        if len(recent) >= 3:
+            amounts = [t["amount"] for t in recent[-3:]]
+            if (
+                all(a < amount_threshold for a in amounts)
+                and sum(amounts) >= amount_threshold
+            ):
+                flags.append({
+                    "flag_type": "STRUCTURING_PATTERN",
+                    "detail": (
+                        f"3 sub-threshold transactions totalling "
+                        f"£{sum(amounts):.2f} — possible smurfing"
+                    ),
+                    "timestamp": now,
+                    "account": self.ac_num,
+                    "account_name": self.name
+                })
+
+        return flags
+
+    def aml_report(self):
+        """Prints a structured AML risk summary for this account."""
+        flags = self.velocity_check()
+        print(f"\n--- AML Risk Report: {self.ac_num} ({self.name}) ---")
+        if not flags:
+            print("No suspicious activity detected.")
+        else:
+            print(f"ALERT: {len(flags)} flag(s) detected:")
+            for f in flags:
+                print(f"  [{f['flag_type']}] {f['detail']} at {f['timestamp']}")
+        print(f"Total transactions on record: {len(self.transactions)}")
+        print(f"Account status: {'Active' if self.is_active else 'Frozen'}")
+
+
+# ── PREMIUM ACCOUNT ────────────────────────────────────────────────────────────
 
 class PremiumAccount(BasicAccount):
-    def __init__(self, ac_name: str, opening_balance: float, initial_overdraft: float):
+
+    def __init__(self, ac_name: str, opening_balance: float,
+                 initial_overdraft: float):
         super().__init__(ac_name, opening_balance)
         self.overdraft = True
         self.overdraft_limit = initial_overdraft
-        self.loan_balance = 0  # Loan feature
+        self.loan_balance = 0
 
     def __str__(self):
         return (
@@ -186,11 +276,12 @@ class PremiumAccount(BasicAccount):
             self.withdraw(self.balance)
             return True
         else:
-            print(f"Cannot close account due to "
-                  f"overdraft or loan balance £{self.loan_balance:.2f}")
+            print(
+                f"Cannot close account due to outstanding "
+                f"overdraft or loan balance of £{self.loan_balance:.2f}"
+            )
             return False
 
-    
     def apply_interest(self, rate):
         interest = self.balance * (rate / 100)
         self.balance += interest
@@ -202,17 +293,108 @@ class PremiumAccount(BasicAccount):
         self.loan_balance += amount * (1 + interest_rate / 100)
         self.balance += amount
         self.record_transaction("Loan Taken", amount)
-        print(f"Loan of £{amount:.2f} approved at {interest_rate}%. "
-              f"Loan balance: £{self.loan_balance:.2f}")
+        print(
+            f"Loan of £{amount:.2f} approved at {interest_rate}%. "
+            f"Total loan balance: £{self.loan_balance:.2f}"
+        )
 
     def repay_loan(self, amount):
-        if amount <= self.balance and amount > 0:
-            if amount >= self.loan_balance:
-                amount = self.loan_balance
+        if 0 < amount <= self.balance:
+            amount = min(amount, self.loan_balance)
             self.balance -= amount
             self.loan_balance -= amount
             self.record_transaction("Loan Repayment", amount)
-            print(f"Repaid £{amount:.2f} towards loan. "
+            print(f"Repaid £{amount:.2f}. "
                   f"Remaining loan: £{self.loan_balance:.2f}")
         else:
             print("Insufficient balance or invalid repayment amount.")
+
+
+# ── FRAUD MONITOR ──────────────────────────────────────────────────────────────
+
+class FraudMonitor:
+    """
+    Portfolio-level AML monitoring across all registered accounts.
+    Mimics a basic Financial Intelligence Unit (FIU) screening layer.
+    Detects: high-frequency outflows, high-value transactions,
+    structuring/smurfing patterns. Auto-freezes flagged accounts.
+    Exports alert log to CSV for downstream Power BI reporting.
+    """
+
+    def __init__(self):
+        self.accounts = []
+        self.alert_log = []
+
+    def register_account(self, account):
+        self.accounts.append(account)
+        print(f"Registered: {account.ac_num} — {account.name}")
+
+    def run_screening(self, window_minutes=60, max_transactions=5,
+                      amount_threshold=500):
+        """
+        Screens all registered accounts for AML risk indicators.
+        Automatically freezes accounts with active flags.
+        """
+        print("\n" + "=" * 50)
+        print("AML PORTFOLIO SCREENING RUN")
+        print(f"Timestamp     : {datetime.now()}")
+        print(f"Accounts      : {len(self.accounts)}")
+        print(f"Window        : {window_minutes} minutes")
+        print(f"Max Outflows  : {max_transactions}")
+        print(f"Value Threshold: £{amount_threshold:.2f}")
+        print("=" * 50)
+
+        for account in self.accounts:
+            flags = account.velocity_check(
+                window_minutes=window_minutes,
+                max_transactions=max_transactions,
+                amount_threshold=amount_threshold
+            )
+            if flags:
+                self.alert_log.extend(flags)
+                print(f"\n[ALERT] {account.ac_num} — {account.name}")
+                for f in flags:
+                    print(f"  >> [{f['flag_type']}] {f['detail']}")
+                account.freeze_account()
+            else:
+                print(f"[CLEAR] {account.ac_num} — {account.name}")
+
+        print(f"\nScreening complete. "
+              f"Total alerts raised: {len(self.alert_log)}")
+
+    def export_alert_log(self, filename="aml_alerts.csv"):
+        """
+        Exports alert log to CSV.
+        Compatible with Power BI for dashboard reporting.
+        """
+        if not self.alert_log:
+            print("No alerts to export.")
+            return
+
+        fieldnames = [
+            "flag_type", "detail", "timestamp",
+            "account", "account_name"
+        ]
+        with open(filename, "w", newline="") as f:
+            writer = csv.DictWriter(f, fieldnames=fieldnames)
+            writer.writeheader()
+            writer.writerows(self.alert_log)
+
+        print(f"\nAlert log exported to '{filename}'. "
+              f"Records: {len(self.alert_log)}")
+
+    def summary_report(self):
+        """Prints a breakdown of alert types across the portfolio."""
+        if not self.alert_log:
+            print("No alerts recorded.")
+            return
+
+        from collections import Counter
+        counts = Counter(f["flag_type"] for f in self.alert_log)
+        print("\n--- AML Alert Summary ---")
+        for flag_type, count in counts.items():
+            print(f"  {flag_type}: {count} alert(s)")
+        print(f"  Total flagged accounts: "
+              f"{len(set(f['account'] for f in self.alert_log))}")
+
+
