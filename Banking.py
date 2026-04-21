@@ -49,11 +49,21 @@ class BasicAccount:
             print("PIN verification failed. Transfer denied.")
             self.record_transaction("Transfer Out", amount, success=False)
             return
-        if self.withdraw(amount):
-            to_account.deposit(amount)
-            print(f"Transferred £{amount:.2f} to {to_account.get_name()}")
-            self.record_transaction("Transfer Out", amount)
-            to_account.record_transaction("Transfer In", amount)
+        if not self.is_active:
+            print("Transaction denied. Account is frozen.")
+            return
+        available = self.get_available_balance()
+        if amount <= 0 or amount > available:
+            print(f"Cannot transfer £{amount:.2f}. Insufficient funds.")
+            self.record_transaction("Transfer Out", amount, success=False)
+            return
+
+        self.balance -= amount
+        to_account.balance += amount
+
+        self.record_transaction("Transfer Out", amount)
+        to_account.record_transaction("Transfer In", amount)
+        print(f"Transferred £{amount:.2f} to {to_account.get_name()}")
 
     def verify_pin(self, pin):
         return self.pin == pin
