@@ -154,8 +154,13 @@ class BasicAccount:
 
     def close_account(self):
         if self.get_balance() >= 0:
-            print(f"Account closed. Amount to be returned: £{self.balance:.2f}.")
-            self.withdraw(self.balance)
+            if self.balance > 0:
+                print(f"Account closed. Amount to be returned: £{self.balance:.2f}.")
+                self.balance = 0
+                self.record_transaction("Account Closure", self.balance)
+            else:
+                print("Account closed with zero balance.")
+            self.is_active = False
             return True
         else:
             print("Account cannot be closed due to negative balance.")
