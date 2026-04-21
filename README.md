@@ -1,46 +1,59 @@
-# Banking System
-This project implements a banking system simulator in Python with two types of accounts:
+# Banking System with AML Transaction Monitoring
 
-Basic Account
+## Overview
+A modular Python banking system simulating core retail banking operations 
+with a built-in Anti-Money Laundering (AML) monitoring layer.
 
-Premium Account (with overdraft and loan features)
+Built to demonstrate understanding of financial crime typologies and 
+compliance workflows alongside OOP design principles.
 
-It allows users to perform common banking operations such as deposits, withdrawals, transfers, and also introduces real-world features like overdrafts, loans, transaction history, card expiry checks, and account freezing.
+## Features
 
-✨ Features
-🔹 Basic Account
+### Core Banking
+- Account creation with auto-generated UK-format account numbers
+- Deposits, withdrawals, transfers with PIN verification  
+- Card issuance and expiry management
+- Account freezing/unfreezing
+- Premium accounts with overdraft and loan facilities
 
-Open an account with an initial balance
+### AML Monitoring (Key Feature)
+Three detection typologies implemented:
 
-Deposit & withdraw money
+| Typology | Logic |
+|---|---|
+| High Frequency | >5 outflows within 60-minute rolling window |
+| High Value | Single transaction exceeding £500 threshold |
+| Structuring/Smurfing | 3+ sub-threshold transactions summing above threshold |
 
-Transfer money to another account (with PIN verification)
+### FraudMonitor Class
+Portfolio-level screening across all accounts — mimics a basic 
+Financial Intelligence Unit (FIU) system:
+- Screens all registered accounts simultaneously
+- Auto-freezes accounts on positive alert
+- Exports alert log to CSV for Power BI dashboard reporting
 
-Transaction history (mini statement)
+## Technical Stack
+- Python 3.x
+- OOP with inheritance (BasicAccount → PremiumAccount)
+- CSV export compatible with Power BI
+- datetime-based rolling window logic
 
-Account number generation (IBAN-like format)
+## Project Structure
+banking_system/
+├── banking_system.py   # Core classes
+├── demo.py             # Full working demonstration  
+├── test_banking.py     # Unit tests
+├── aml_alerts.csv      # Sample output
+└── README.md
 
-Debit card generation with expiry date
+## AML Concepts Referenced
+- Velocity monitoring
+- Structuring / smurfing detection
+- Suspicious Activity Report (SAR) workflow simulation
+- Account freezing on alert (regulatory hold simulation)
 
-Card renewal reminders
+## How to Run
+python demo.py
 
-Account freeze/unfreeze for security
-
-Monthly maintenance fees
-
-Close account (if balance ≥ 0)
-
-✨ Features
-🔹 Premium Account (inherits from BasicAccount)
-
-All features of BasicAccount
-
-Overdraft facility with configurable limit
-
-Loan borrowing and repayment with interest
-
-Interest applied on account balance
-
-Remaining overdraft tracking
-
-Cannot close account if loan or overdraft outstanding
+## Sample Output
+[Screenshot here]
