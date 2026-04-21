@@ -55,5 +55,3 @@ banking_system/
 ## How to Run
 python demo.py
 
-## Sample Output
-[Screenshot here]
