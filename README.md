@@ -53,5 +53,5 @@ banking_system/
 - Account freezing on alert (regulatory hold simulation)
 
 ## How to Run
-python demo.py
+sample_run.py
 
